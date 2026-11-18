@@ -25,4 +25,11 @@ For `HOBBIES_1_001` at `CA_1`, both moving averages forecasted the same eight hi
 | 7 days | 0.98 | 5.00 |
 | 28 days | 0.78 | 2.91 |
 
-The 28-day window had lower errors for this product and period. The dashboard and reorder ranking still use the seven-day baseline while the longer window is evaluated across more products.
+Across all ten products at `CA_1`, the 28-day window had lower weekly MAE for every product over the same eight weeks. Each product contributes equally to the averages below.
+
+| Moving average | Mean daily MAE (units/day) | Mean weekly MAE (units/week) |
+| --- | ---: | ---: |
+| 7 days | 1.61 | 8.19 |
+| 28 days | 1.54 | 5.71 |
+
+The dashboard and reorder ranking still use the seven-day baseline. The 28-day window is the candidate for evaluation on the following week before a change to the reorder workflow.

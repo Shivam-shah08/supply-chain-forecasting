@@ -50,8 +50,9 @@ def load_actual_sales(product, forecast_days):
     raise SystemExit("The evaluation file has no sales row for this product and store.")
 
 
-def print_backtest(sales_by_day, dates):
-    print("\nBacktest on the last eight weeks of training data")
+def backtest(sales_by_day, dates=None):
+    if dates is not None:
+        print("\nBacktest on the last eight weeks of training data")
     windows = (FORECAST_DAYS, COMPARISON_WINDOW)
     daily_errors = {window: [] for window in windows}
     weekly_errors = {window: [] for window in windows}
@@ -67,12 +68,29 @@ def print_backtest(sales_by_day, dates):
             daily_errors[window].extend(abs(forecast - units) for _, units in actual_week)
             weekly_errors[window].append(abs(predicted_total - actual_total))
             forecasts.append(f"{window}-day forecast {predicted_total:.2f}")
-        print(f"  Week of {dates[actual_week[0][0]]}: {', '.join(forecasts)}, actual {actual_total} units")
+        if dates is not None:
+            print(f"  Week of {dates[actual_week[0][0]]}: {', '.join(forecasts)}, actual {actual_total} units")
 
-    for window in windows:
-        daily_mae = mean(daily_errors[window])
-        weekly_mae = mean(weekly_errors[window])
-        print(f"{window}-day moving average: daily MAE {daily_mae:.2f} units/day, "
+    return {
+        window: (mean(daily_errors[window]), mean(weekly_errors[window]))
+        for window in windows
+    }
+
+
+def print_portfolio_backtest(products):
+    print("\nForecast comparison across all products (weekly MAE, units/week)")
+    print(f"{'Product':<20}{'7-day average':>16}{'28-day average':>17}")
+    results = []
+    for product in products:
+        metrics = backtest(daily_sales(product))
+        results.append(metrics)
+        print(f"{product['item_id']:<20}{metrics[FORECAST_DAYS][1]:>16.2f}"
+              f"{metrics[COMPARISON_WINDOW][1]:>17.2f}")
+
+    for window in (FORECAST_DAYS, COMPARISON_WINDOW):
+        daily_mae = mean(metrics[window][0] for metrics in results)
+        weekly_mae = mean(metrics[window][1] for metrics in results)
+        print(f"{window}-day portfolio average: daily MAE {daily_mae:.2f} units/day, "
               f"weekly MAE {weekly_mae:.2f} units/week")
 
 
@@ -219,7 +237,11 @@ def main():
         print(line)
     print(f"Forecast total for the week: {forecast_total:.1f} units")
 
-    print_backtest(sales_by_day, dates)
+    metrics = backtest(sales_by_day, dates)
+    for window, (daily_mae, weekly_mae) in metrics.items():
+        print(f"{window}-day moving average: daily MAE {daily_mae:.2f} units/day, "
+              f"weekly MAE {weekly_mae:.2f} units/week")
+    print_portfolio_backtest(products)
     print_reorder_decision(daily_forecast, INVENTORY[product["item_id"]])
     store_id = product["store_id"]
     ranking = replenishment_ranking(products)
