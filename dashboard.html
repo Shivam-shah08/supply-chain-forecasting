@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Supply Chain Forecasting</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #edf2f5; color: #152e3d; font: 1rem/1.5 system-ui, sans-serif; }
+  header { background: #142f3e; color: white; padding: 2rem max(5vw, calc((100vw - 70rem) / 2)); }
+  h1, h2, p { margin: 0 0 .6rem; }
+  header p { color: #d0e5ea; }
+  main { max-width: 74rem; margin: auto; padding: 1.5rem 2rem; display: grid; gap: 1.2rem; }
+  section { background: white; border: 1px solid #d6e1e7; border-radius: .75rem; padding: 1.4rem; }
+  select { padding: .5rem; font: inherit; color: inherit; border: 1px solid #577580; border-radius: .3rem; }
+  #chart-summary { margin: .8rem 0; }
+  #chart { display: grid; gap: .4rem; padding: 0; list-style: none; }
+  #chart li { display: grid; grid-template-columns: 6.6rem 1fr 4.3rem; gap: .6rem; align-items: center; }
+  .track { background: #edf2f5; border-radius: .25rem; }
+  .bar { display: block; height: 1rem; background: #137a75; border-radius: .25rem; }
+  .scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; text-align: left; white-space: nowrap; }
+  th, td { padding: .65rem; border-bottom: 1px solid #d6e1e7; }
+  th { background: #edf2f5; }
+  @media (max-width: 35rem) { main { padding: 1rem; } section { padding: 1rem; } }
+</style>
+<header>
+  <h1>Supply Chain Forecasting</h1>
+  <p>Historical Walmart M5 sales forecast with simulated inventory and supplier inputs.</p>
+</header>
+<main>
+  <p id="status" hidden>Run <code>python3 dashboard.py</code> and open the generated dashboard in the data folder.</p>
+  <section id="forecast" hidden>
+    <h2>Seven-day sales forecast</h2>
+    <label for="product">Product and store</label>
+    <select id="product"></select>
+    <p id="chart-summary" aria-live="polite"></p>
+    <ul id="chart" aria-label="Predicted units by day"></ul>
+  </section>
+  <section id="replenishment" hidden>
+    <h2>Replenishment priorities</h2>
+    <p id="priority-count"></p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th scope="col">Priority</th><th scope="col">Store</th><th scope="col">Product</th><th scope="col">Forecast units</th><th scope="col">Inventory position</th><th scope="col">Reorder point</th><th scope="col">Units below point</th></tr></thead>
+        <tbody id="priorities"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<script id="results" type="application/json"></script>
+<script>
+  const data = document.querySelector('#results').textContent;
+  if (!data) {
+    document.querySelector('#status').hidden = false;
+  } else {
+    const {forecasts, ranking} = JSON.parse(data);
+    const products = new Map();
+    for (const row of forecasts) {
+      const label = `${row.item_id} at ${row.store_id}`;
+      if (!products.has(label)) products.set(label, []);
+      products.get(label).push(row);
+    }
+    const select = document.querySelector('#product');
+    for (const label of products.keys()) select.add(new Option(label, label));
+    const scale = Math.max(1, ...forecasts.map(row => row.forecast_units));
+    function showForecast() {
+      const rows = products.get(select.value) || [];
+      const chart = document.querySelector('#chart');
+      chart.replaceChildren();
+      const total = rows.reduce((sum, row) => sum + row.forecast_units, 0);
+      document.querySelector('#chart-summary').textContent = `${total.toFixed(1)} forecast units over ${rows.length} days`;
+      for (const row of rows) {
+        const item = document.createElement('li');
+        const track = document.createElement('span');
+        const bar = document.createElement('span');
+        track.className = 'track';
+        track.setAttribute('aria-hidden', 'true');
+        bar.className = 'bar';
+        bar.style.width = `${100 * row.forecast_units / scale}%`;
+        track.append(bar);
+        item.append(row.forecast_date, track, row.forecast_units.toFixed(2));
+        chart.append(item);
+      }
+    }
+    select.addEventListener('change', showForecast);
+    showForecast();
+    document.querySelector('#priority-count').textContent = `${ranking.length} products reached or fell below their reorder points.`;
+    for (const row of ranking) {
+      const tr = document.querySelector('#priorities').insertRow();
+      for (const value of [row.priority, row.store_id, row.item_id, row.forecast_week_units, row.inventory_position, row.reorder_point, row.units_below_reorder_point]) {
+        tr.insertCell().textContent = value;
+      }
+    }
+    document.querySelector('#forecast').hidden = false;
+    document.querySelector('#replenishment').hidden = false;
+  }
+</script>
+</html>
