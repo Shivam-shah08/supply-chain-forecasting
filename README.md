@@ -2,6 +2,21 @@
 
 Forecast seven days of retail sales with a moving-average baseline and use simulated inventory to prioritize replenishment. The example covers ten products at Walmart store CA_1. It includes an eight-week backtest and a comparison with actual sales for the next week.
 
+## Project at a glance
+
+- **Forecasting.** Compared 7-day and 28-day moving averages across ten products. The 28-day window reduced weekly mean absolute error by about 30% in the eight-week backtest and by 9% in the following week.
+- **Replenishment.** Used forecast sales, simulated lead times, and safety stock to calculate reorder points. The 28-day model flagged six products in the dashboard's forecast week.
+- **Inventory simulation.** Replayed 28 days of sales to compare how much demand each policy filled and how much inventory it carried. The seven-day policy filled 95.8% of simulated demand versus 93.5% for the 28-day policy at their original safety-stock settings.
+
+## How it works
+
+| File | Role |
+| --- | --- |
+| [`main.py`](main.py) | Reads the M5 sales and calendar files, backtests forecasts, and writes daily forecasts and reorder rankings to SQLite. |
+| [`replenishment_report.sql`](replenishment_report.sql) | Queries the latest forecast week and ranks products flagged for reorder. |
+| [`dashboard.py`](dashboard.py) and [`dashboard.html`](dashboard.html) | Generate an interactive local report with a product selector and replenishment table. |
+| [`inventory_simulation.py`](inventory_simulation.py) | Compares fill rate, average inventory, and order counts across forecast and safety-stock settings. |
+
 ## Run locally
 
 Download `calendar.csv`, `sales_train_validation.csv`, and `sales_train_evaluation.csv` from the [Walmart M5 Forecasting competition](https://www.kaggle.com/competitions/m5-forecasting-accuracy/data) and place them in a `data/` folder. The evaluation file enables the comparison to actual sales.
