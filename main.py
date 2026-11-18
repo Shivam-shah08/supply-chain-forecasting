@@ -13,6 +13,7 @@ from statistics import mean
 DATA = Path(__file__).resolve().parent / "data"
 FORECAST_DAYS = 7
 BACKTEST_WEEKS = 8
+COMPARISON_WINDOW = 28
 PRODUCT_LIMIT = 10
 
 
@@ -51,21 +52,28 @@ def load_actual_sales(product, forecast_days):
 
 def print_backtest(sales_by_day, dates):
     print("\nBacktest on the last eight weeks of training data")
-    daily_errors = []
-    weekly_errors = []
+    windows = (FORECAST_DAYS, COMPARISON_WINDOW)
+    daily_errors = {window: [] for window in windows}
+    weekly_errors = {window: [] for window in windows}
     first_week = len(sales_by_day) - BACKTEST_WEEKS * FORECAST_DAYS
     for start in range(first_week, len(sales_by_day), FORECAST_DAYS):
-        previous_week = sales_by_day[start - FORECAST_DAYS:start]
         actual_week = sales_by_day[start:start + FORECAST_DAYS]
-        forecast = mean(units for _, units in previous_week)
-        predicted_total = forecast * FORECAST_DAYS
         actual_total = sum(units for _, units in actual_week)
-        daily_errors.extend(abs(forecast - units) for _, units in actual_week)
-        weekly_errors.append(abs(predicted_total - actual_total))
-        print(f"  Week of {dates[actual_week[0][0]]}: forecast {predicted_total:.1f}, actual {actual_total} units")
+        forecasts = []
+        for window in windows:
+            history = sales_by_day[start - window:start]
+            forecast = mean(units for _, units in history)
+            predicted_total = forecast * FORECAST_DAYS
+            daily_errors[window].extend(abs(forecast - units) for _, units in actual_week)
+            weekly_errors[window].append(abs(predicted_total - actual_total))
+            forecasts.append(f"{window}-day forecast {predicted_total:.2f}")
+        print(f"  Week of {dates[actual_week[0][0]]}: {', '.join(forecasts)}, actual {actual_total} units")
 
-    print(f"Backtest daily mean absolute error: {mean(daily_errors):.2f} units/day")
-    print(f"Backtest weekly mean absolute error: {mean(weekly_errors):.2f} units/week")
+    for window in windows:
+        daily_mae = mean(daily_errors[window])
+        weekly_mae = mean(weekly_errors[window])
+        print(f"{window}-day moving average: daily MAE {daily_mae:.2f} units/day, "
+              f"weekly MAE {weekly_mae:.2f} units/week")
 
 
 def reorder_levels(daily_forecast, inputs):
