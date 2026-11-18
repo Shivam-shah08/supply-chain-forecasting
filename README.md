@@ -48,3 +48,18 @@ Run `python3 inventory_simulation.py` with all three M5 files available. The scr
 | 28 days | 93.5% | 34 | 10 | 11.29 | 37 |
 
 The 28-day policy carried less inventory, while the 7-day policy met more of the simulated demand. The results describe this replay under the stated assumptions.
+
+### Safety-stock sensitivity
+
+The simulation also adds zero to five safety-stock units to each product under the 28-day policy. The seven-day policy keeps its original safety stock for comparison.
+
+| Extra units per product | Demand filled | Unfilled units | Mean ending inventory per product |
+| ---: | ---: | ---: | ---: |
+| 0 | 93.5% | 34 | 11.29 |
+| 1 | 93.9% | 32 | 11.96 |
+| 2 | 94.3% | 30 | 12.96 |
+| 3 | 94.5% | 29 | 13.76 |
+| 4 | 94.7% | 28 | 14.59 |
+| 5 | 94.9% | 27 | 15.38 |
+
+None of the tested settings matched the seven-day policy's 95.8% fill rate. Adding two or more units also raised average inventory above the seven-day policy's 12.79 units per product. This sensitivity check uses the same replay period as the initial comparison.

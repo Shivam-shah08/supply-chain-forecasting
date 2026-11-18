@@ -2,7 +2,7 @@
 
 import csv
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from math import ceil
 from statistics import mean
 
@@ -66,20 +66,23 @@ def main():
     actuals = load_actual_sales(products, replay_days)
 
     print(f"Inventory replay for {len(products)} products at {STORE} over {REPLAY_DAYS} days")
-    for window in (FORECAST_DAYS, ACTIVE_WINDOW):
-        results = [
-            replay([units for _, units in sales], actuals[(STORE, item_id)], INVENTORY[item_id], window)
-            for item_id, sales in histories.items()
-        ]
+    scenarios = [(FORECAST_DAYS, 0)] + [(ACTIVE_WINDOW, extra) for extra in range(6)]
+    print(f"{'Forecast window':>15} {'Extra safety stock':>18} {'Fill rate':>10} "
+          f"{'Unfilled':>9} {'Stockout days':>14} {'Mean stock':>11} {'Orders':>7}")
+    for window, extra_safety_stock in scenarios:
+        results = []
+        for item_id, sales in histories.items():
+            inputs = INVENTORY[item_id]
+            inputs = replace(inputs, safety_stock=inputs.safety_stock + extra_safety_stock)
+            results.append(replay([units for _, units in sales], actuals[(STORE, item_id)], inputs, window))
+
         demand = sum(result.demand for result in results)
         unfilled = sum(result.unfilled for result in results)
-        print(f"\n{window}-day moving average")
-        print(f"  Fill rate: {(demand - unfilled) / demand:.1%}")
-        print(f"  Unfilled units: {unfilled} of {demand}")
-        print(f"  Product-days with unfilled demand: {sum(result.stockout_days for result in results)}")
-        print(f"  Average end-of-day inventory per product: "
-              f"{mean(result.inventory_days for result in results) / REPLAY_DAYS:.2f} units")
-        print(f"  Replenishment orders: {sum(result.orders for result in results)}")
+        stockout_days = sum(result.stockout_days for result in results)
+        average_stock = mean(result.inventory_days for result in results) / REPLAY_DAYS
+        orders = sum(result.orders for result in results)
+        print(f"{window:>11} days {extra_safety_stock:>18} {(demand - unfilled) / demand:>10.1%} "
+              f"{unfilled:>9} {stockout_days:>14} {average_stock:>11.2f} {orders:>7}")
 
 
 if __name__ == "__main__":
