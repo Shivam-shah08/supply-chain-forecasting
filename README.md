@@ -36,4 +36,4 @@ Across all ten products at `CA_1`, the 28-day window had lower weekly MAE for ev
 
 For April 25–May 1, 2016, forecasts used only sales through April 24. Across the same ten products, mean absolute error in the weekly total was **5.00 units per product** for the 7-day window and **4.55** for the 28-day window. The 28-day window reduced error by 9% on this week, but still underforecast the highest-selling product by 32 units (57 forecast against 89 actual).
 
-The dashboard and reorder ranking still use the seven-day baseline.
+The dashboard and reorder ranking use the 28-day moving average to forecast the next seven days. With the same simulated inventory, both models flagged the same six products. The order of those products changed. The top item, `HOBBIES_1_008`, stayed first and its reorder point rose from 40 to 41 units.

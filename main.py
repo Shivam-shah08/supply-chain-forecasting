@@ -1,4 +1,4 @@
-"""Forecast and evaluate one product's sales using a seven-day moving average."""
+"""Forecast retail sales and prioritize replenishment with moving averages."""
 
 import csv
 import sqlite3
@@ -14,6 +14,7 @@ DATA = Path(__file__).resolve().parent / "data"
 FORECAST_DAYS = 7
 BACKTEST_WEEKS = 8
 COMPARISON_WINDOW = 28
+ACTIVE_WINDOW = COMPARISON_WINDOW
 PRODUCT_LIMIT = 10
 
 
@@ -141,12 +142,12 @@ def daily_sales(product):
     return [(day, int(units)) for day, units in product.items() if day.startswith("d_")]
 
 
-def replenishment_ranking(products):
+def replenishment_ranking(products, window):
     ranking = []
     for product in products:
         item_id = product["item_id"]
-        last_week = daily_sales(product)[-FORECAST_DAYS:]
-        forecast = mean(units for _, units in last_week)
+        history = daily_sales(product)[-window:]
+        forecast = mean(units for _, units in history)
         _, reorder_point, inventory_position = reorder_levels(forecast, INVENTORY[item_id])
         gap = reorder_point - inventory_position
         ranking.append((gap, item_id, reorder_point, inventory_position, forecast))
@@ -160,6 +161,17 @@ def print_replenishment_ranking(ranking, store_id):
     for gap, item_id, reorder_point, inventory_position, _ in ranking:
         decision = "Reorder now" if gap >= 0 else "Wait"
         print(f"{item_id:<20}{reorder_point:>15}{inventory_position:>12}{gap:>8}  {decision}")
+
+
+def print_reorder_changes(baseline, active):
+    baseline_flags = {item_id for gap, item_id, *_ in baseline if gap >= 0}
+    active_flags = {item_id for gap, item_id, *_ in active if gap >= 0}
+    newly_flagged = ", ".join(sorted(active_flags - baseline_flags)) or "None"
+    no_longer_flagged = ", ".join(sorted(baseline_flags - active_flags)) or "None"
+    print(f"\nReorder decisions: {len(baseline_flags)} flagged with the 7-day window, "
+          f"{len(active_flags)} with the {ACTIVE_WINDOW}-day window")
+    print(f"Newly flagged: {newly_flagged}")
+    print(f"No longer flagged: {no_longer_flagged}")
 
 
 def save_results(store_id, forecast_dates, ranking):
@@ -235,7 +247,7 @@ def main():
     with (DATA / "calendar.csv").open(newline="") as file:
         dates = {row["d"]: date.fromisoformat(row["date"]) for row in csv.DictReader(file)}
 
-    daily_forecast = mean(units for _, units in last_week)
+    daily_forecast = mean(units for _, units in sales_by_day[-ACTIVE_WINDOW:])
     last_date = dates[last_week[-1][0]]
     print(f"Product {product['item_id']} at store {product['store_id']}")
     print("Sales during the last seven days in the training file")
@@ -254,7 +266,7 @@ def main():
         actuals = None
     actual_sales = None if actuals is None else actuals[(product["store_id"], product["item_id"])]
 
-    print("Seven-day forecast")
+    print(f"Seven-day forecast using the {ACTIVE_WINDOW}-day moving average")
     for index, forecast_date in enumerate(forecast_dates):
         line = f"  {forecast_date}  forecast {daily_forecast:.2f} units"
         if actual_sales is not None:
@@ -269,8 +281,9 @@ def main():
     print_portfolio_backtest(products)
     print_reorder_decision(daily_forecast, INVENTORY[product["item_id"]])
     store_id = product["store_id"]
-    ranking = replenishment_ranking(products)
+    ranking = replenishment_ranking(products, ACTIVE_WINDOW)
     print_replenishment_ranking(ranking, store_id)
+    print_reorder_changes(replenishment_ranking(products, FORECAST_DAYS), ranking)
     save_results(store_id, forecast_dates, ranking)
     print("\nEvaluation on the week after the training data")
     if actual_sales is None:
