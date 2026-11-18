@@ -2,6 +2,8 @@
 
 Forecast seven days of retail sales with a moving-average baseline and use simulated inventory to prioritize replenishment. The example covers ten products at Walmart store CA_1. It includes an eight-week backtest and a comparison with actual sales for the next week.
 
+![Dashboard showing the seven-day sales forecast and six replenishment priorities for store CA_1](dashboard-preview.jpg)
+
 ## Project at a glance
 
 - **Forecasting.** Compared 7-day and 28-day moving averages across ten products. The 28-day window reduced weekly mean absolute error by about 30% in the eight-week backtest and by 9% in the following week.
