@@ -37,3 +37,14 @@ Across all ten products at `CA_1`, the 28-day window had lower weekly MAE for ev
 For April 25–May 1, 2016, forecasts used only sales through April 24. Across the same ten products, mean absolute error in the weekly total was **5.00 units per product** for the 7-day window and **4.55** for the 28-day window. The 28-day window reduced error by 9% on this week, but still underforecast the highest-selling product by 32 units (57 forecast against 89 actual).
 
 The dashboard and reorder ranking use the 28-day moving average to forecast the next seven days. With the same simulated inventory, both models flagged the same six products. The order of those products changed. The top item, `HOBBIES_1_008`, stayed first and its reorder point rose from 40 to 41 units.
+
+## Inventory simulation
+
+Run `python3 inventory_simulation.py` with all three M5 files available. The script replays April 25–May 22, 2016 for ten products. M5 sales serve as demand, unmet units are treated as lost sales, and supplier lead times are fixed. Each evening the policy updates its forecast. If inventory position reaches the reorder point, it orders up to forecast lead-time demand plus seven days of coverage and safety stock.
+
+| Moving average | Fill rate | Unfilled units | Product-days with unfilled demand | Mean ending inventory per product | Orders placed |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 7 days | 95.8% | 22 | 8 | 12.79 | 36 |
+| 28 days | 93.5% | 34 | 10 | 11.29 | 37 |
+
+The 28-day policy carried less inventory, while the 7-day policy met more of the simulated demand. The results describe this replay under the stated assumptions.
