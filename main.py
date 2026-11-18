@@ -41,13 +41,19 @@ INVENTORY = {
 }
 
 
-def load_actual_sales(product, forecast_days):
+def load_actual_sales(products, forecast_days):
+    remaining = {(row["store_id"], row["item_id"]) for row in products}
+    actuals = {}
     with (DATA / "sales_train_evaluation.csv").open(newline="") as file:
         for row in csv.DictReader(file):
-            if row["item_id"] == product["item_id"] and row["store_id"] == product["store_id"]:
-                return [int(row[day]) for day in forecast_days]
+            key = (row["store_id"], row["item_id"])
+            if key in remaining:
+                actuals[key] = [int(row[day]) for day in forecast_days]
+                remaining.remove(key)
+                if not remaining:
+                    return actuals
 
-    raise SystemExit("The evaluation file has no sales row for this product and store.")
+    raise SystemExit(f"Missing evaluation sales for {sorted(remaining)}")
 
 
 def backtest(sales_by_day, dates=None):
@@ -92,6 +98,24 @@ def print_portfolio_backtest(products):
         weekly_mae = mean(metrics[window][1] for metrics in results)
         print(f"{window}-day portfolio average: daily MAE {daily_mae:.2f} units/day, "
               f"weekly MAE {weekly_mae:.2f} units/week")
+
+
+def print_held_out_comparison(products, actuals):
+    print("\nHeld-out week comparison (sales units)")
+    print(f"{'Product':<20}{'Actual':>10}{'7-day forecast':>17}{'28-day forecast':>18}")
+    windows = (FORECAST_DAYS, COMPARISON_WINDOW)
+    errors = {window: [] for window in windows}
+    for product in products:
+        item_id = product["item_id"]
+        actual_total = sum(actuals[(product["store_id"], item_id)])
+        history = daily_sales(product)
+        totals = [mean(units for _, units in history[-window:]) * FORECAST_DAYS for window in windows]
+        for window, total in zip(windows, totals):
+            errors[window].append(abs(total - actual_total))
+        print(f"{item_id:<20}{actual_total:>10}{totals[0]:>17.2f}{totals[1]:>18.2f}")
+
+    for window in windows:
+        print(f"{window}-day held-out weekly MAE: {mean(errors[window]):.2f} units/product")
 
 
 def reorder_levels(daily_forecast, inputs):
@@ -225,9 +249,10 @@ def main():
     forecast_total = daily_forecast * FORECAST_DAYS
     day_by_date = {calendar_date: day for day, calendar_date in dates.items()}
     try:
-        actual_sales = load_actual_sales(product, [day_by_date[day] for day in forecast_dates])
+        actuals = load_actual_sales(products, [day_by_date[day] for day in forecast_dates])
     except FileNotFoundError:
-        actual_sales = None
+        actuals = None
+    actual_sales = None if actuals is None else actuals[(product["store_id"], product["item_id"])]
 
     print("Seven-day forecast")
     for index, forecast_date in enumerate(forecast_dates):
@@ -258,6 +283,7 @@ def main():
     print(f"Actual total for the week: {actual_total} units")
     print(f"Weekly error (forecast minus actual): {weekly_error:+.1f} units")
     print(f"Daily mean absolute error: {daily_mae:.2f} units/day")
+    print_held_out_comparison(products, actuals)
 
 
 if __name__ == "__main__":
